@@ -5,7 +5,7 @@ import { Colors, Spacing, Typography, BorderRadius } from '../../constants/theme
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { formatCurrency, formatQuantity, formatDate } from '../../utils/formatters';
-import { AlertTriangle, Calendar, Calculator, ChevronRight } from 'lucide-react-native';
+import { AlertTriangle, Calendar, Calculator, ChevronRight, Layers } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useCartStore } from '../../store/cartStore';
 
@@ -60,7 +60,20 @@ export const MedicineCard: React.FC<MedicineCardProps> = ({ medicine, onPress })
             </Text>
           )}
         </View>
-        <ChevronRight size={18} color={Colors.textMuted} />
+
+        {medicine.rackLocation ? (
+          <View style={styles.shelfCornerBadge}>
+            <View style={styles.shelfBadgeHeader}>
+              <Layers size={10} color="#4F46E5" />
+              <Text style={styles.shelfCornerLabel}>SHELF</Text>
+            </View>
+            <Text style={styles.shelfCornerValue} numberOfLines={1}>
+              {medicine.rackLocation}
+            </Text>
+          </View>
+        ) : (
+          <ChevronRight size={18} color={Colors.textMuted} />
+        )}
       </View>
 
       {/* Badges row */}
@@ -199,5 +212,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.primaryDark,
     marginLeft: 4,
+  },
+  shelfCornerBadge: {
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1.5,
+    borderColor: '#6366F1',
+    borderRadius: BorderRadius.sm + 2,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 54,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  shelfBadgeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  shelfCornerLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#4F46E5',
+    letterSpacing: 0.5,
+  },
+  shelfCornerValue: {
+    fontSize: Typography.sm + 1,
+    fontWeight: '900',
+    color: '#1E1B4B',
+    marginTop: 1,
   },
 });

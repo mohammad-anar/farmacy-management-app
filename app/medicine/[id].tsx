@@ -138,14 +138,28 @@ export default function MedicineDetailScreen() {
       >
         {/* Core Stock & Price Overview Card */}
         <Card style={styles.mainCard}>
-          <Text style={styles.medicineTitle}>{medicine.name}</Text>
-          {(medicine.genericName || medicine.brandName || medicine.strength) && (
-            <Text style={styles.medicineSubtitle}>
-              {[medicine.brandName, medicine.genericName, medicine.strength]
-                .filter(Boolean)
-                .join(' • ')}
-            </Text>
-          )}
+          <View style={styles.mainCardHeaderRow}>
+            <View style={styles.mainCardTitleCol}>
+              <Text style={styles.medicineTitle}>{medicine.name}</Text>
+              {(medicine.genericName || medicine.brandName || medicine.strength) && (
+                <Text style={styles.medicineSubtitle}>
+                  {[medicine.brandName, medicine.genericName, medicine.strength]
+                    .filter(Boolean)
+                    .join(' • ')}
+                </Text>
+              )}
+            </View>
+
+            {medicine.rackLocation ? (
+              <View style={styles.shelfDetailBadge}>
+                <View style={styles.shelfDetailHeader}>
+                  <Layers size={13} color="#4F46E5" />
+                  <Text style={styles.shelfDetailLabel}>SHELF / সেল্ফ</Text>
+                </View>
+                <Text style={styles.shelfDetailValue}>{medicine.rackLocation}</Text>
+              </View>
+            ) : null}
+          </View>
 
           <View style={styles.tagRow}>
             {medicine.quantity <= 0 ? (
@@ -388,6 +402,47 @@ const styles = StyleSheet.create({
   mainCard: {
     padding: Spacing.lg,
     marginBottom: Spacing.md,
+  },
+  mainCardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  mainCardTitleCol: {
+    flex: 1,
+    paddingRight: Spacing.sm,
+  },
+  shelfDetailBadge: {
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1.5,
+    borderColor: '#6366F1',
+    borderRadius: BorderRadius.md,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  shelfDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  shelfDetailLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#4F46E5',
+    letterSpacing: 0.5,
+  },
+  shelfDetailValue: {
+    fontSize: Typography.base,
+    fontWeight: '900',
+    color: '#1E1B4B',
+    marginTop: 2,
   },
   medicineTitle: {
     fontSize: Typography.xl,

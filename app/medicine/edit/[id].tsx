@@ -181,6 +181,21 @@ export default function EditMedicineScreen() {
               />
             </View>
           </View>
+
+          {/* Primary Shelf Number / Rack Input */}
+          <Controller
+            control={control}
+            name="rackLocation"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Shelf / Rack Number (সেল্ফ / র‍্যাক নং)"
+                optional
+                placeholder="e.g., Shelf A-1, Rack 3, Drawer B"
+                value={value}
+                onChangeText={onChange}
+              />
+            )}
+          />
         </Card>
 
         {/* Clinical details */}
@@ -299,14 +314,6 @@ export default function EditMedicineScreen() {
                   />
                 </View>
               </View>
-
-              <Controller
-                control={control}
-                name="rackLocation"
-                render={({ field: { onChange, value } }) => (
-                  <Input label="Shelf / Rack Location" optional value={value} onChangeText={onChange} />
-                )}
-              />
 
               <Controller
                 control={control}
