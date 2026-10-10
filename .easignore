@@ -1,0 +1,7 @@
+# EAS ignore
+node_modules
+.expo
+android
+ios
+dist
+npm-debug.log

@@ -31,6 +31,12 @@
       "expo-sqlite",
       "expo-status-bar"
     ],
-    "scheme": "pharmacyapp"
+    "scheme": "pharmacyapp",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "42b5500a-aed0-4f9d-83ac-1b9f6c307b05"
+      }
+    }
   }
 }
