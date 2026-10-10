@@ -21,6 +21,7 @@ class SyncService {
 
     // 1. Reset any outbox entries left in 'syncing' status on app restart
     await SyncOutboxRepository.resetInFlightOperations();
+    await MedicineRepository.cleanupDuplicates();
 
     // 2. Load sync store initial state
     await useSyncStore.getState().loadInitialState();

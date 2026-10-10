@@ -206,6 +206,13 @@ export class MedicineRepository {
       for (const med of medicines) {
         const id = med.id;
         const now = new Date().toISOString();
+
+        // Remove any old temporary client-side row with this server_id or matching client_id
+        await db.runAsync(
+          `DELETE FROM medicines WHERE (server_id = ? OR client_id = ?) AND id != ?;`,
+          [id, id, id],
+        );
+
         await db.runAsync(
           `INSERT INTO medicines (
             id, client_id, server_id, name, selling_price, quantity,
@@ -405,9 +412,9 @@ export class MedicineRepository {
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    // Count query
+    // Count query with deduplication
     const countResult = await db.getFirstAsync<{ total: number }>(
-      `SELECT COUNT(*) as total FROM medicines ${whereClause};`,
+      `SELECT COUNT(DISTINCT LOWER(TRIM(name))) as total FROM medicines ${whereClause};`,
       params,
     );
     const total = countResult?.total || 0;
@@ -425,7 +432,7 @@ export class MedicineRepository {
     const direction = sortOrder.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
 
     const rows = await db.getAllAsync<SQLiteMedicineRow>(
-      `SELECT * FROM medicines ${whereClause} ORDER BY ${sortCol} ${direction} LIMIT ? OFFSET ?;`,
+      `SELECT * FROM medicines ${whereClause} GROUP BY LOWER(TRIM(name)) ORDER BY ${sortCol} ${direction} LIMIT ? OFFSET ?;`,
       [...params, limit, offset],
     );
 
@@ -434,15 +441,24 @@ export class MedicineRepository {
   }
 
   /**
-   * Soft-delete a medicine locally
+   * Delete a medicine locally and immediately hide from catalog
    */
   static async delete(id: string): Promise<void> {
     const db = await getDatabase();
+    const med = await this.findById(id);
     const now = new Date().toISOString();
+
     await db.runAsync(
       `UPDATE medicines SET is_deleted = 1, sync_status = 'pending', updated_at = ? WHERE id = ? OR client_id = ? OR server_id = ?;`,
       [now, id, id, id],
     );
+
+    if (med?.name) {
+      await db.runAsync(
+        `UPDATE medicines SET is_deleted = 1, sync_status = 'pending', updated_at = ? WHERE LOWER(TRIM(name)) = LOWER(TRIM(?));`,
+        [now, med.name],
+      );
+    }
   }
 
   /**
@@ -674,9 +690,56 @@ export class MedicineRepository {
    */
   static async reconcileServerId(clientId: string, serverId: string): Promise<void> {
     const db = await getDatabase();
-    await db.runAsync(
-      `UPDATE medicines SET server_id = ?, sync_status = 'synced' WHERE client_id = ? OR id = ?;`,
-      [serverId, clientId, clientId],
-    );
+    await db.execAsync('BEGIN TRANSACTION;');
+    try {
+      // 1. If another row already exists with id = serverId, delete client row
+      const existing = await db.getFirstAsync<{ id: string }>(
+        `SELECT id FROM medicines WHERE id = ?;`,
+        [serverId],
+      );
+
+      if (existing) {
+        await db.runAsync(`DELETE FROM medicines WHERE (client_id = ? OR id = ?) AND id != ?;`, [
+          clientId,
+          clientId,
+          serverId,
+        ]);
+      } else {
+        // 2. Update existing row primary key and server_id to serverId
+        await db.runAsync(
+          `UPDATE medicines SET id = ?, server_id = ?, sync_status = 'synced' WHERE client_id = ? OR id = ?;`,
+          [serverId, serverId, clientId, clientId],
+        );
+      }
+
+      // 3. Update relational tables
+      await db.runAsync(`UPDATE batches SET medicine_id = ? WHERE medicine_id = ?;`, [serverId, clientId]);
+      await db.runAsync(`UPDATE stock_history SET medicine_id = ? WHERE medicine_id = ?;`, [serverId, clientId]);
+      await db.execAsync('COMMIT;');
+    } catch (err) {
+      await db.execAsync('ROLLBACK;');
+      console.warn('[MedicineRepository] reconcileServerId error:', err);
+    }
+  }
+
+  /**
+   * Clean up any existing duplicate medicine records
+   */
+  static async cleanupDuplicates(): Promise<void> {
+    try {
+      const db = await getDatabase();
+      // Remove older duplicates where same name, selling_price, and server_id exists
+      await db.runAsync(`
+        DELETE FROM medicines 
+        WHERE id NOT IN (
+          SELECT MAX(id) 
+          FROM medicines 
+          WHERE is_deleted = 0
+          GROUP BY LOWER(TRIM(name)), selling_price, COALESCE(server_id, '')
+        ) AND is_deleted = 0;
+      `);
+    } catch (err) {
+      console.warn('[MedicineRepository] cleanupDuplicates error:', err);
+    }
   }
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   Linking,
   Alert,
   RefreshControl,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -41,6 +43,7 @@ export default function MedicineDetailScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const addItemToCart = useCartStore((state) => state.addItem);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const {
     data: medicine,
@@ -56,30 +59,22 @@ export default function MedicineDetailScreen() {
   const deleteMutation = useMutation({
     mutationFn: () => MedicineService.deleteMedicine(id!),
     onSuccess: () => {
+      setShowDeleteModal(false);
       queryClient.invalidateQueries({ queryKey: ['medicines-list'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-      Alert.alert('Medicine Archived', 'The medicine has been safely archived locally and queued for synchronization.', [
+      queryClient.invalidateQueries({ queryKey: ['low-stock-list'] });
+      queryClient.invalidateQueries({ queryKey: ['cart-picker-search'] });
+      Alert.alert('Medicine Deleted', 'The medicine has been permanently removed from your catalog.', [
         { text: 'OK', onPress: () => router.replace('/(tabs)/medicines') },
       ]);
     },
     onError: (err: any) => {
-      Alert.alert('Error', err.message || 'Could not archive medicine.');
+      Alert.alert('Error', err.message || 'Could not delete medicine.');
     },
   });
 
   const handleDelete = () => {
-    Alert.alert(
-      'Archive Medicine',
-      'Are you sure you want to archive this medicine? Its historical stock audit records will remain preserved.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive',
-          style: 'destructive',
-          onPress: () => deleteMutation.mutate(),
-        },
-      ],
-    );
+    setShowDeleteModal(true);
   };
 
   const handleOpenPurchaseUrl = async () => {
@@ -373,16 +368,84 @@ export default function MedicineDetailScreen() {
           </>
         )}
 
-        {/* Archive Button */}
+        {/* Delete Medicine Button */}
         <TouchableOpacity
-          style={styles.archiveBtn}
+          style={styles.deleteBtn}
           onPress={handleDelete}
           activeOpacity={0.7}
         >
           <Trash2 size={16} color={Colors.danger} />
-          <Text style={styles.archiveBtnText}>Archive Medicine</Text>
+          <Text style={styles.deleteBtnText}>Delete Medicine (প্রোডাক্ট ডিলিট করুন)</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !deleteMutation.isPending && setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContainer}>
+            <View style={styles.deleteIconCircle}>
+              <AlertTriangle size={32} color={Colors.danger} />
+            </View>
+
+            <Text style={styles.deleteModalTitle}>Delete Medicine?</Text>
+            <Text style={styles.deleteModalSubtitle}>
+              Are you sure you want to permanently delete{' '}
+              <Text style={{ fontWeight: '800', color: Colors.textPrimary }}>
+                {medicine.name}
+              </Text>
+              ?
+            </Text>
+
+            <View style={styles.deleteItemInfoBox}>
+              <Text style={styles.deleteInfoText}>
+                • Current Stock: {formatQuantity(medicine.quantity)} units
+              </Text>
+              {medicine.rackLocation ? (
+                <Text style={styles.deleteInfoText}>• Shelf Location: {medicine.rackLocation}</Text>
+              ) : null}
+              {medicine.sellingPrice ? (
+                <Text style={styles.deleteInfoText}>• Selling Price: {formatCurrency(medicine.sellingPrice)}</Text>
+              ) : null}
+            </View>
+
+            <Text style={styles.deleteWarningText}>
+              This item will be deleted immediately from your catalog and inventory list.
+            </Text>
+
+            <View style={styles.modalButtonsRow}>
+              <TouchableOpacity
+                style={styles.cancelModalBtn}
+                onPress={() => setShowDeleteModal(false)}
+                disabled={deleteMutation.isPending}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelModalBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmDeleteBtn}
+                onPress={() => deleteMutation.mutate()}
+                disabled={deleteMutation.isPending}
+                activeOpacity={0.7}
+              >
+                {deleteMutation.isPending ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Trash2 size={16} color="#FFFFFF" />
+                    <Text style={styles.confirmDeleteBtnText}>Delete Now</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -628,7 +691,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     marginTop: 2,
   },
-  archiveBtn: {
+  deleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -636,13 +699,117 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginTop: Spacing.xl,
     borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.dangerBorder,
-    backgroundColor: Colors.dangerLight,
+    borderWidth: 1.5,
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2',
   },
-  archiveBtnText: {
+  deleteBtnText: {
     color: Colors.danger,
     fontSize: Typography.sm,
+    fontWeight: '800',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  deleteModalContainer: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+  deleteIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  deleteModalTitle: {
+    fontSize: Typography.xl,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    marginBottom: Spacing.xs,
+  },
+  deleteModalSubtitle: {
+    fontSize: Typography.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: Spacing.md,
+  },
+  deleteItemInfoBox: {
+    width: '100%',
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 4,
+  },
+  deleteInfoText: {
+    fontSize: Typography.xs,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  deleteWarningText: {
+    fontSize: Typography.xs - 1,
+    color: Colors.danger,
     fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: Spacing.md,
+  },
+  cancelModalBtn: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+  },
+  cancelModalBtnText: {
+    fontSize: Typography.sm,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+  },
+  confirmDeleteBtn: {
+    flex: 1.3,
+    flexDirection: 'row',
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    shadowColor: Colors.danger,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  confirmDeleteBtnText: {
+    fontSize: Typography.sm,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

@@ -8,12 +8,14 @@ import {
   Modal,
   SafeAreaView,
   ScrollView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '../../src/store/cartStore';
 import { MedicineService } from '../../src/services/medicine.service';
 import { SyncStatusBar } from '../../src/components/SyncStatusBar';
-import { Medicine } from '../../src/types';
+import { Medicine, CartItem } from '../../src/types';
 import { Colors, Spacing, Typography, BorderRadius } from '../../src/constants/theme';
 import { CartItemCard } from '../../src/components/cart/CartItemCard';
 import { Input } from '../../src/components/common/Input';
@@ -29,12 +31,16 @@ import {
   Search,
   X,
   Pill,
+  PackageMinus,
+  CheckCircle2,
 } from 'lucide-react-native';
 
 export default function CartCalculatorScreen() {
-  const { items, clearCart, getSubtotal, getItemCount, addItem, refreshPrices } = useCartStore();
+  const queryClient = useQueryClient();
+  const { items, clearCart, getSubtotal, getItemCount, addItem, removeItem, refreshPrices } = useCartStore();
   const [modalVisible, setModalVisible] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
+  const [isDeducting, setIsDeducting] = useState(false);
   const debouncedPickerSearch = useDebounce(pickerSearch, 300);
 
   const { data: searchResults, isLoading: isSearchLoading } = useQuery({
@@ -61,14 +67,88 @@ export default function CartCalculatorScreen() {
     }
   };
 
+  // Deduct single item stock
+  const handleDeductSingleItem = (item: CartItem) => {
+    Alert.alert(
+      'Minus Stock (স্টক কমান)',
+      `Are you sure you want to deduct ${item.quantity} units of "${item.medicine.name}" from stock?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Deduct Stock',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await MedicineService.adjustStock(
+                item.medicine.id,
+                -item.quantity,
+                'Calculator Single Item Deduction',
+                'STOCK_ADJUSTMENT',
+              );
+              removeItem(item.medicine.id);
+              queryClient.invalidateQueries({ queryKey: ['medicines-list'] });
+              queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+              queryClient.invalidateQueries({ queryKey: ['low-stock-list'] });
+              Alert.alert('Success', `Deducted ${item.quantity} units of ${item.medicine.name} from stock.`);
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Failed to deduct stock');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // Deduct all items stock (Complete checkout / sale)
+  const handleDeductAllStock = () => {
+    if (items.length === 0) return;
+
+    Alert.alert(
+      'Minus All Stocks (সবগুলো স্টক থেকে মাইনাস)',
+      `Deduct quantities for ${items.length} item(s) (Total ${totalItemCount} units) from inventory stock?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm Deduction',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeducting(true);
+            try {
+              for (const item of items) {
+                await MedicineService.adjustStock(
+                  item.medicine.id,
+                  -item.quantity,
+                  'Calculator Sale Deduction',
+                  'STOCK_ADJUSTMENT',
+                );
+              }
+              clearCart();
+              queryClient.invalidateQueries({ queryKey: ['medicines-list'] });
+              queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+              queryClient.invalidateQueries({ queryKey: ['low-stock-list'] });
+              Alert.alert(
+                'Stock Updated!',
+                `Successfully deducted stock for ${items.length} items. Sync queued.`,
+              );
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Failed to deduct all stocks');
+            } finally {
+              setIsDeducting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={styles.container}>
       {/* Top Header */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Price Calculator</Text>
+          <Text style={styles.headerTitle}>Price Calculator & Sale</Text>
           <Text style={styles.headerSubtitle}>
-            Temporary price estimator for customer inquiries
+            Calculate customer bill and deduct inventory stock
           </Text>
         </View>
 
@@ -98,9 +178,9 @@ export default function CartCalculatorScreen() {
 
       {/* Isolation Notice Banner */}
       <View style={styles.noticeBanner}>
-        <Info size={16} color={Colors.accent} style={styles.noticeIcon} />
+        <Info size={16} color={Colors.primary} style={styles.noticeIcon} />
         <Text style={styles.noticeText}>
-          Temporary Calculator Only: Does not record sales, take payments, or deduct stock.
+          Use this calculator for rapid billing. Press "Minus Stocks" to deduct sold quantities from inventory.
         </Text>
       </View>
 
@@ -108,7 +188,9 @@ export default function CartCalculatorScreen() {
       <FlatList
         data={items}
         keyExtractor={(item) => item.medicine.id}
-        renderItem={({ item }) => <CartItemCard item={item} />}
+        renderItem={({ item }) => (
+          <CartItemCard item={item} onDeductItemStock={handleDeductSingleItem} />
+        )}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <EmptyState
@@ -127,17 +209,30 @@ export default function CartCalculatorScreen() {
             <Text style={styles.itemCountLabel}>
               {totalItemCount} {totalItemCount === 1 ? 'Unit' : 'Units'} Selected
             </Text>
-            <Text style={styles.grandTotalLabel}>Estimated Total</Text>
+            <Text style={styles.grandTotalLabel}>Total Amount</Text>
           </View>
           <Text style={styles.grandTotalValue}>{formatCurrency(grandTotal)}</Text>
         </View>
 
-        <Button
-          title="+ Add Medicine to Calculator"
-          onPress={() => setModalVisible(true)}
-          variant="primary"
-          style={styles.addMoreBtn}
-        />
+        <View style={styles.bottomActionsRow}>
+          <Button
+            title="+ Add Medicine"
+            onPress={() => setModalVisible(true)}
+            variant="secondary"
+            style={styles.addMoreBtn}
+          />
+
+          {items.length > 0 && (
+            <Button
+              title={isDeducting ? 'Deducting...' : '➖ Minus Stocks (স্টক কমান)'}
+              onPress={handleDeductAllStock}
+              variant="danger"
+              disabled={isDeducting}
+              icon={isDeducting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <PackageMinus size={16} color="#FFFFFF" />}
+              style={styles.deductAllBtn}
+            />
+          )}
+        </View>
       </View>
 
       {/* Medicine Picker Modal */}
@@ -302,7 +397,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Colors.primary,
   },
+  bottomActionsRow: {
+    flexDirection: 'column',
+    gap: Spacing.sm,
+  },
   addMoreBtn: {
+    width: '100%',
+  },
+  deductAllBtn: {
     width: '100%',
   },
   modalContainer: {

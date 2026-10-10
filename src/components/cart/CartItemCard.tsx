@@ -4,14 +4,15 @@ import { CartItem } from '../../types';
 import { Colors, Spacing, Typography, BorderRadius } from '../../constants/theme';
 import { Card } from '../common/Card';
 import { formatCurrency } from '../../utils/formatters';
-import { Minus, Plus, Trash2 } from 'lucide-react-native';
+import { Minus, Plus, Trash2, PackageMinus, Layers } from 'lucide-react-native';
 import { useCartStore } from '../../store/cartStore';
 
 interface CartItemCardProps {
   item: CartItem;
+  onDeductItemStock?: (item: CartItem) => void;
 }
 
-export const CartItemCard: React.FC<CartItemCardProps> = ({ item }) => {
+export const CartItemCard: React.FC<CartItemCardProps> = ({ item, onDeductItemStock }) => {
   const { updateQuantity, removeItem } = useCartStore();
   const unitPrice = item.customPrice !== undefined ? item.customPrice : item.medicine.sellingPrice;
   const subtotal = unitPrice * item.quantity;
@@ -44,9 +45,20 @@ export const CartItemCard: React.FC<CartItemCardProps> = ({ item }) => {
           <Text style={styles.name} numberOfLines={1}>
             {item.medicine.name}
           </Text>
-          <Text style={styles.unitPrice}>
-            Unit Price: {formatCurrency(unitPrice)}
-          </Text>
+          <View style={styles.metaBadgeRow}>
+            <Text style={styles.unitPrice}>
+              Unit: {formatCurrency(unitPrice)}
+            </Text>
+            <Text style={styles.stockBadgeText}>
+              • Stock: {item.medicine.quantity}
+            </Text>
+            {item.medicine.rackLocation ? (
+              <View style={styles.shelfMiniBadge}>
+                <Layers size={10} color="#4F46E5" />
+                <Text style={styles.shelfMiniText}>{item.medicine.rackLocation}</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
 
         <TouchableOpacity
@@ -86,9 +98,21 @@ export const CartItemCard: React.FC<CartItemCardProps> = ({ item }) => {
           </TouchableOpacity>
         </View>
 
+        {/* Individual Deduct Stock Button */}
+        {onDeductItemStock && (
+          <TouchableOpacity
+            style={styles.singleDeductBtn}
+            onPress={() => onDeductItemStock(item)}
+            activeOpacity={0.7}
+          >
+            <PackageMinus size={13} color="#B91C1C" />
+            <Text style={styles.singleDeductText}>- {item.quantity} Stock</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Subtotal */}
         <View style={styles.subtotalColumn}>
-          <Text style={styles.subtotalLabel}>Item Subtotal</Text>
+          <Text style={styles.subtotalLabel}>Subtotal</Text>
           <Text style={styles.subtotalValue}>{formatCurrency(subtotal)}</Text>
         </View>
       </View>
@@ -119,10 +143,51 @@ const styles = StyleSheet.create({
   unitPrice: {
     fontSize: Typography.xs,
     color: Colors.textSecondary,
-    marginTop: 2,
+  },
+  metaBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 3,
+  },
+  stockBadgeText: {
+    fontSize: Typography.xs,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
+  shelfMiniBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    paddingVertical: 1,
+    paddingHorizontal: 5,
+    borderRadius: 4,
+    gap: 2,
+  },
+  shelfMiniText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#4F46E5',
   },
   deleteButton: {
     padding: Spacing.xs,
+  },
+  singleDeductBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: BorderRadius.sm,
+    gap: 3,
+  },
+  singleDeductText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B91C1C',
   },
   footerRow: {
     flexDirection: 'row',
