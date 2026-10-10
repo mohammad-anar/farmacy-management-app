@@ -30,11 +30,17 @@ export class MedicineService {
 
   /**
    * Create medicine offline-first:
-   * 1. Persist in SQLite with client UUID
-   * 2. Enqueue CREATE_MEDICINE in SyncOutbox
-   * 3. Trigger background sync if online
+   * 1. Check for duplicate name locally
+   * 2. Persist in SQLite with client UUID
+   * 3. Enqueue CREATE_MEDICINE in SyncOutbox
+   * 4. Trigger background sync if online
    */
   static async createMedicine(data: Partial<Medicine> & { name: string; sellingPrice: number; quantity: number }): Promise<Medicine> {
+    const existing = await MedicineRepository.findByName(data.name);
+    if (existing) {
+      throw new Error(`A medicine named '${data.name.trim()}' already exists (এই নামের মেডিসিন ইতিমধ্যে বিদ্যমান)।`);
+    }
+
     const clientEntityId = `med_${generateUUID()}`;
     const operationId = generateUUID();
 
@@ -61,11 +67,19 @@ export class MedicineService {
 
   /**
    * Update medicine offline-first:
-   * 1. Update in SQLite
-   * 2. Enqueue UPDATE_MEDICINE in SyncOutbox
-   * 3. Trigger background sync if online
+   * 1. Check for duplicate name if name changed
+   * 2. Update in SQLite
+   * 3. Enqueue UPDATE_MEDICINE in SyncOutbox
+   * 4. Trigger background sync if online
    */
   static async updateMedicine(id: string, data: Partial<Medicine>): Promise<Medicine> {
+    if (data.name) {
+      const existing = await MedicineRepository.findByName(data.name, id);
+      if (existing) {
+        throw new Error(`A medicine named '${data.name.trim()}' already exists (এই নামের মেডিসিন ইতিমধ্যে বিদ্যমান)।`);
+      }
+    }
+
     const operationId = generateUUID();
 
     const current = await MedicineRepository.findById(id);

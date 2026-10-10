@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/store/authStore';
 import { syncService } from '../src/services/sync.service';
+import { MedicineRepository } from '../src/db/repositories/medicine.repository';
 import { ActivityIndicator, View } from 'react-native';
 import { Colors } from '../src/constants/theme';
 
@@ -23,7 +24,8 @@ function RootNavigation() {
   const router = useRouter();
 
   useEffect(() => {
-    initAuth().then(() => {
+    initAuth().then(async () => {
+      await MedicineRepository.cleanupDuplicates();
       syncService.initialize();
     });
   }, []);

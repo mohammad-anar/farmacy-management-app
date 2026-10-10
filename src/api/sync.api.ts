@@ -31,14 +31,18 @@ export interface SyncPullResponse {
 
 export const syncApi = {
   push: async (operations: SyncPushOperationPayload[]): Promise<SyncPushResponse> => {
-    const response = await apiClient.post<SyncPushResponse>('/sync/push', { operations });
-    return response.data;
+    const response: any = await apiClient.post('/sync/push', { operations });
+    if (response?.results) return response;
+    if (response?.data?.results) return response.data;
+    return { results: [] };
   },
 
   pull: async (cursor?: string | null, limit = 100): Promise<SyncPullResponse> => {
     const params: Record<string, any> = { limit };
     if (cursor) params.cursor = cursor;
-    const response = await apiClient.get<SyncPullResponse>('/sync/pull', { params });
-    return response.data;
+    const response: any = await apiClient.get('/sync/pull', { params });
+    if (response?.items !== undefined) return response;
+    if (response?.data?.items !== undefined) return response.data;
+    return { items: [], serverCursor: cursor || '', hasMore: false };
   },
 };

@@ -39,14 +39,15 @@ export const SyncStatusBar: React.FC = () => {
           Sync: {formatLastSync(lastSyncTime)}
         </Text>
         <TouchableOpacity
-          style={[styles.syncButton, (isSyncing || !isOnline) && styles.syncButtonDisabled]}
+          style={[styles.syncButton, isSyncing && styles.syncButtonDisabled]}
           onPress={handleSyncPress}
-          disabled={isSyncing || !isOnline}
+          disabled={isSyncing}
+          activeOpacity={0.7}
         >
           {isSyncing ? (
             <ActivityIndicator size="small" color="#0D9488" />
           ) : (
-            <Ionicons name="sync-outline" size={16} color={isOnline ? '#0D9488' : '#9CA3AF'} />
+            <Ionicons name="sync-outline" size={18} color="#0D9488" />
           )}
         </TouchableOpacity>
       </View>

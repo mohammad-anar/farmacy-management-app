@@ -26,9 +26,18 @@ class SyncService {
     // 2. Load sync store initial state
     await useSyncStore.getState().loadInitialState();
 
-    // 3. Network listener
+    // 3. Initial network check
+    try {
+      const initialNetState = await NetInfo.fetch();
+      const isInitiallyOnline = !!initialNetState.isConnected;
+      useSyncStore.getState().setOnline(isInitiallyOnline);
+    } catch {
+      useSyncStore.getState().setOnline(true);
+    }
+
+    // 4. Network change listener
     NetInfo.addEventListener((state) => {
-      const isOnline = !!(state.isConnected && state.isInternetReachable !== false);
+      const isOnline = !!state.isConnected;
       useSyncStore.getState().setOnline(isOnline);
 
       if (isOnline) {
@@ -36,7 +45,7 @@ class SyncService {
       }
     });
 
-    // 4. App State foreground listener
+    // 5. App State foreground listener
     AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
         this.triggerSyncIfOnline();
@@ -54,6 +63,11 @@ class SyncService {
     const { isOnline } = useSyncStore.getState();
     const { isAuthenticated } = useAuthStore.getState();
 
+    // Update pending count in UI
+    SyncOutboxRepository.getPendingCount().then((count) => {
+      useSyncStore.getState().setPendingCount(count);
+    });
+
     if (!isOnline || !isAuthenticated) return;
 
     if (this.syncDebounceTimer) {
@@ -64,7 +78,7 @@ class SyncService {
       this.syncNow().catch((err) => {
         console.warn('[SyncService] Auto-sync encountered error:', err.message);
       });
-    }, 1000);
+    }, 500);
   }
 
   /**
@@ -159,6 +173,9 @@ class SyncService {
       } catch (pullErr: any) {
         console.warn('[SyncService Pull Error]:', pullErr.message);
       }
+
+      // Proactively clean up any duplicate records and deleted items post-sync
+      await MedicineRepository.cleanupDuplicates();
 
       // Refresh store state
       const remainingPending = await SyncOutboxRepository.getPendingCount();

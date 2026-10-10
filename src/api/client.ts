@@ -68,7 +68,7 @@ apiClient.interceptors.response.use(
   (response) => {
     // Unpack uniform response payload { success: true, data: ... }
     if (response.data && response.data.data !== undefined) {
-      return response.data;
+      return response.data.data;
     }
     return response.data;
   },

@@ -97,12 +97,26 @@ export class MedicineRepository {
     serverId?: string,
   ): Promise<Medicine> {
     const db = await getDatabase();
-    const id = med.id || clientId || generateUUID();
-    const resolvedClientId = clientId || id;
-    const resolvedServerId = serverId || (med.id && !med.id.startsWith('med_') ? med.id : null);
+    
+    // Check if an existing medicine with this name or client_id exists to reuse its ID
+    const trimmedName = med.name.trim();
+    const existingMed = await db.getFirstAsync<SQLiteMedicineRow>(
+      `SELECT id, server_id, client_id FROM medicines WHERE (LOWER(TRIM(name)) = LOWER(TRIM(?)) OR id = ? OR client_id = ?) AND is_deleted = 0 LIMIT 1;`,
+      [trimmedName, med.id || '', clientId || ''],
+    );
+
+    const id = existingMed?.id || med.id || clientId || generateUUID();
+    const resolvedClientId = existingMed?.client_id || clientId || id;
+    const resolvedServerId = serverId || existingMed?.server_id || (med.id && !med.id.startsWith('med_') ? med.id : null);
     const now = new Date().toISOString();
     const createdAt = med.createdAt || now;
     const updatedAt = now;
+
+    // Delete any other duplicate row with the exact same name
+    await db.runAsync(
+      `DELETE FROM medicines WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND id != ?;`,
+      [trimmedName, id],
+    );
 
     await db.runAsync(
       `INSERT INTO medicines (
@@ -206,11 +220,23 @@ export class MedicineRepository {
       for (const med of medicines) {
         const id = med.id;
         const now = new Date().toISOString();
+        const trimmedName = med.name.trim();
 
-        // Remove any old temporary client-side row with this server_id or matching client_id
+        if (med.isDeleted) {
+          // Permanently remove deleted medicines from SQLite
+          await db.runAsync(
+            `DELETE FROM medicines WHERE id = ? OR server_id = ? OR client_id = ? OR LOWER(TRIM(name)) = LOWER(TRIM(?));`,
+            [id, id, id, trimmedName],
+          );
+          await db.runAsync(`DELETE FROM batches WHERE medicine_id = ?;`, [id]);
+          await db.runAsync(`DELETE FROM stock_history WHERE medicine_id = ?;`, [id]);
+          continue;
+        }
+
+        // Remove any existing duplicate row with this name, server_id, or client_id that is not this ID
         await db.runAsync(
-          `DELETE FROM medicines WHERE (server_id = ? OR client_id = ?) AND id != ?;`,
-          [id, id, id],
+          `DELETE FROM medicines WHERE (server_id = ? OR client_id = ? OR LOWER(TRIM(name)) = LOWER(TRIM(?))) AND id != ?;`,
+          [id, id, trimmedName, id],
         );
 
         await db.runAsync(
@@ -355,6 +381,22 @@ export class MedicineRepository {
   }
 
   /**
+   * Find a medicine by exact name (case-insensitive)
+   */
+  static async findByName(name: string, excludeId?: string): Promise<Medicine | null> {
+    if (!name || !name.trim()) return null;
+    const db = await getDatabase();
+    const query = excludeId
+      ? `SELECT id FROM medicines WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND id != ? AND is_deleted = 0 LIMIT 1;`
+      : `SELECT id FROM medicines WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND is_deleted = 0 LIMIT 1;`;
+    const params = excludeId ? [name.trim(), excludeId] : [name.trim()];
+
+    const row = await db.getFirstAsync<{ id: string }>(query, params);
+    if (!row) return null;
+    return this.findById(row.id);
+  }
+
+  /**
    * Search medicines locally in SQLite
    */
   static async search(options: {
@@ -367,6 +409,9 @@ export class MedicineRepository {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }): Promise<{ items: Medicine[]; total: number }> {
+    // Proactively clean up any duplicates and removed products
+    await this.cleanupDuplicates();
+
     const db = await getDatabase();
     const {
       query = '',
@@ -374,12 +419,11 @@ export class MedicineRepository {
       dosageForm,
       isLowStock,
       page = 1,
-      limit = 20,
+      limit = 100,
       sortBy = 'name',
       sortOrder = 'asc',
     } = options;
 
-    const offset = (page - 1) * limit;
     const conditions: string[] = ['is_deleted = 0'];
     const params: any[] = [];
 
@@ -412,13 +456,6 @@ export class MedicineRepository {
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    // Count query with deduplication
-    const countResult = await db.getFirstAsync<{ total: number }>(
-      `SELECT COUNT(DISTINCT LOWER(TRIM(name))) as total FROM medicines ${whereClause};`,
-      params,
-    );
-    const total = countResult?.total || 0;
-
     // Allowed sort columns
     const allowedSortCols: Record<string, string> = {
       name: 'name',
@@ -432,12 +469,26 @@ export class MedicineRepository {
     const direction = sortOrder.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
 
     const rows = await db.getAllAsync<SQLiteMedicineRow>(
-      `SELECT * FROM medicines ${whereClause} GROUP BY LOWER(TRIM(name)) ORDER BY ${sortCol} ${direction} LIMIT ? OFFSET ?;`,
-      [...params, limit, offset],
+      `SELECT * FROM medicines ${whereClause} ORDER BY ${sortCol} ${direction};`,
+      params,
     );
 
-    const items = rows.map((r) => mapRowToMedicine(r));
-    return { items, total };
+    // Guaranteed deduplication by normalized medicine name
+    const seenNames = new Set<string>();
+    const uniqueItems: Medicine[] = [];
+
+    for (const r of rows) {
+      const normalizedName = r.name.toLowerCase().trim();
+      if (!seenNames.has(normalizedName)) {
+        seenNames.add(normalizedName);
+        uniqueItems.push(mapRowToMedicine(r));
+      }
+    }
+
+    const offset = (page - 1) * limit;
+    const paginatedItems = uniqueItems.slice(offset, offset + limit);
+
+    return { items: paginatedItems, total: uniqueItems.length };
   }
 
   /**
@@ -446,19 +497,22 @@ export class MedicineRepository {
   static async delete(id: string): Promise<void> {
     const db = await getDatabase();
     const med = await this.findById(id);
-    const now = new Date().toISOString();
 
+    // Permanently remove matching records from SQLite
     await db.runAsync(
-      `UPDATE medicines SET is_deleted = 1, sync_status = 'pending', updated_at = ? WHERE id = ? OR client_id = ? OR server_id = ?;`,
-      [now, id, id, id],
+      `DELETE FROM medicines WHERE id = ? OR client_id = ? OR server_id = ?;`,
+      [id, id, id],
     );
 
     if (med?.name) {
       await db.runAsync(
-        `UPDATE medicines SET is_deleted = 1, sync_status = 'pending', updated_at = ? WHERE LOWER(TRIM(name)) = LOWER(TRIM(?));`,
-        [now, med.name],
+        `DELETE FROM medicines WHERE LOWER(TRIM(name)) = LOWER(TRIM(?));`,
+        [med.name],
       );
     }
+
+    await db.runAsync(`DELETE FROM batches WHERE medicine_id = ?;`, [id]);
+    await db.runAsync(`DELETE FROM stock_history WHERE medicine_id = ?;`, [id]);
   }
 
   /**
@@ -723,19 +777,25 @@ export class MedicineRepository {
   }
 
   /**
-   * Clean up any existing duplicate medicine records
+   * Clean up any existing duplicate medicine records and permanently delete archived items
    */
   static async cleanupDuplicates(): Promise<void> {
     try {
       const db = await getDatabase();
-      // Remove older duplicates where same name, selling_price, and server_id exists
+
+      // 1. Permanently remove all soft-deleted / archived medicines from SQLite
+      await db.runAsync(`DELETE FROM medicines WHERE is_deleted = 1;`);
+      await db.runAsync(`DELETE FROM batches WHERE medicine_id NOT IN (SELECT id FROM medicines);`);
+      await db.runAsync(`DELETE FROM stock_history WHERE medicine_id NOT IN (SELECT id FROM medicines);`);
+
+      // 2. Remove older duplicates by normalized name (keep the canonical newest row with rowid)
       await db.runAsync(`
         DELETE FROM medicines 
-        WHERE id NOT IN (
-          SELECT MAX(id) 
+        WHERE rowid NOT IN (
+          SELECT MAX(rowid) 
           FROM medicines 
           WHERE is_deleted = 0
-          GROUP BY LOWER(TRIM(name)), selling_price, COALESCE(server_id, '')
+          GROUP BY LOWER(TRIM(name))
         ) AND is_deleted = 0;
       `);
     } catch (err) {
