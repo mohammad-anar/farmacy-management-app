@@ -19,12 +19,8 @@ export const getApiBaseUrl = (): string => {
     return extraUrl;
   }
 
-  // Automatic Emulator / Simulator fallback
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5000/api/v1';
-  }
-
-  return 'http://localhost:5000/api/v1';
+  // Fallback to live Render backend
+  return 'https://farmacy-management-backend.onrender.com/api/v1';
 };
 
 export const API_BASE_URL = getApiBaseUrl();
