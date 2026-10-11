@@ -14,6 +14,7 @@ import { Button } from '../../src/components/common/Button';
 import { useAuthStore } from '../../src/store/authStore';
 import { Mail, Lock, Pill } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MedicalLogo } from '../../src/components/common/MedicalLogo';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -61,9 +62,7 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <View style={styles.logoCircle}>
-            <Pill size={36} color="#FFFFFF" />
-          </View>
+          <MedicalLogo size={76} containerStyle={{ marginBottom: Spacing.md }} />
           <Text style={styles.appTitle}>PharmaCare</Text>
           <Text style={styles.appSubtitle}>Personal Pharmacy Inventory & Catalog</Text>
         </View>

@@ -19,6 +19,7 @@ import { StatCard } from '../../src/components/dashboard/StatCard';
 import { Input } from '../../src/components/common/Input';
 import { Badge } from '../../src/components/common/Badge';
 import { Card } from '../../src/components/common/Card';
+import { MedicalLogo } from '../../src/components/common/MedicalLogo';
 import { formatCurrency, formatQuantity, formatDate } from '../../src/utils/formatters';
 import {
   Pill,
@@ -89,13 +90,16 @@ export default function DashboardScreen() {
           { paddingTop: Math.max(insets.top, 12) + Spacing.xs },
         ]}
       >
-        <View>
-          <Text style={styles.greetingText}>
-            {user?.pharmacyName || 'Pharmacy Dashboard'}
-          </Text>
-          <Text style={styles.ownerName}>
-            Welcome, {user?.name || 'Owner'}
-          </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+          <MedicalLogo size={38} />
+          <View>
+            <Text style={styles.greetingText}>
+              {user?.pharmacyName || 'Pharmacy Dashboard'}
+            </Text>
+            <Text style={styles.ownerName}>
+              Welcome, {user?.name || 'Owner'}
+            </Text>
+          </View>
         </View>
 
         <TouchableOpacity

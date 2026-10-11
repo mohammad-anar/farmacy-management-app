@@ -18,6 +18,7 @@ import {
   RefreshCw,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MedicalLogo } from '../../src/components/common/MedicalLogo';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -61,9 +62,12 @@ export default function SettingsScreen() {
       ]}
     >
       {/* Top Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Owner Settings</Text>
-        <Text style={styles.headerSubtitle}>Personal pharmacy profile & offline sync</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.lg }}>
+        <MedicalLogo size={48} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>Owner Settings</Text>
+          <Text style={styles.headerSubtitle}>Personal pharmacy profile & offline sync</Text>
+        </View>
       </View>
 
       {/* Offline Synchronization Card */}
