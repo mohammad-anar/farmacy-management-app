@@ -6,11 +6,11 @@ import {
   FlatList,
   TouchableOpacity,
   Modal,
-  SafeAreaView,
   ScrollView,
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '../../src/store/cartStore';
 import { MedicineService } from '../../src/services/medicine.service';
@@ -36,6 +36,7 @@ import {
 } from 'lucide-react-native';
 
 export default function CartCalculatorScreen() {
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { items, clearCart, getSubtotal, getItemCount, addItem, removeItem, refreshPrices } = useCartStore();
   const [modalVisible, setModalVisible] = useState(false);
@@ -144,7 +145,12 @@ export default function CartCalculatorScreen() {
   return (
     <View style={styles.container}>
       {/* Top Header */}
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: Math.max(insets.top, 12) + Spacing.xs },
+        ]}
+      >
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Price Calculator & Sale</Text>
           <Text style={styles.headerSubtitle}>
@@ -237,7 +243,7 @@ export default function CartCalculatorScreen() {
 
       {/* Medicine Picker Modal */}
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer} edges={['top', 'bottom']}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Medicine</Text>
             <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
@@ -301,7 +307,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl + 10,
     paddingBottom: Spacing.sm,
     backgroundColor: Colors.surface,
   },

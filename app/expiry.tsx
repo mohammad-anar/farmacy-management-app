@@ -21,9 +21,11 @@ import { EmptyState } from '../src/components/common/EmptyState';
 import { LoadingSpinner } from '../src/components/common/LoadingSpinner';
 import { formatDate, formatQuantity } from '../src/utils/formatters';
 import { Calendar, AlertOctagon, Clock, Layers } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ExpiryScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [windowDays, setWindowDays] = useState<number>(30);
 
   const { data, isLoading, isFetching, refetch } = useQuery({
@@ -108,7 +110,10 @@ export default function ExpiryScreen() {
         <FlatList
           data={allItems}
           keyExtractor={(item, index) => `${item.medicineId}-${item.batchId || index}`}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: Spacing.xxxl + Math.max(insets.bottom, 16) },
+          ]}
           refreshControl={
             <RefreshControl
               refreshing={isFetching && !isLoading}

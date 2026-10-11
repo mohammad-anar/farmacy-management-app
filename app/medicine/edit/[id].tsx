@@ -22,8 +22,10 @@ import { Button } from '../../../src/components/common/Button';
 import { Card } from '../../../src/components/common/Card';
 import { LoadingSpinner } from '../../../src/components/common/LoadingSpinner';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function EditMedicineScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -129,7 +131,13 @@ export default function EditMedicineScreen() {
     >
       <Header title="Edit Medicine" subtitle={medicine.name} showBack />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Spacing.xxxl + Math.max(insets.bottom, 16) },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Core Required Fields */}
         <Card style={styles.card}>
           <Controller

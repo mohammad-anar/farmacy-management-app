@@ -8,9 +8,11 @@ import {
   Calculator,
   Settings,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCartStore } from '../../src/store/cartStore';
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   const cartItemCount = useCartStore((state) => state.getItemCount());
 
   return (
@@ -22,8 +24,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: Colors.surface,
           borderTopColor: Colors.border,
-          height: 60,
-          paddingBottom: 8,
+          height: insets.bottom > 0 ? 56 + insets.bottom : 60,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
           paddingTop: 6,
         },
         tabBarLabelStyle: {

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors, Spacing, Typography } from '../../constants/theme';
 import { ArrowLeft } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface HeaderProps {
   title: string;
@@ -18,9 +19,15 @@ export const Header: React.FC<HeaderProps> = ({
   rightAction,
 }) => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: Math.max(insets.top, 12) + Spacing.xs },
+      ]}
+    >
       <View style={styles.leftRow}>
         {showBack && (
           <TouchableOpacity

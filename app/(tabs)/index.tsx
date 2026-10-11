@@ -32,9 +32,11 @@ import {
   PackagePlus,
   Clock,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -81,7 +83,12 @@ export default function DashboardScreen() {
   return (
     <View style={styles.container}>
       {/* Header bar */}
-      <View style={styles.topHeader}>
+      <View
+        style={[
+          styles.topHeader,
+          { paddingTop: Math.max(insets.top, 12) + Spacing.xs },
+        ]}
+      >
         <View>
           <Text style={styles.greetingText}>
             {user?.pharmacyName || 'Pharmacy Dashboard'}
@@ -275,7 +282,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl + 10,
     paddingBottom: Spacing.md,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,

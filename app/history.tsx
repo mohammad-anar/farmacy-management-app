@@ -20,9 +20,11 @@ import { EmptyState } from '../src/components/common/EmptyState';
 import { LoadingSpinner } from '../src/components/common/LoadingSpinner';
 import { formatDate, formatQuantity, formatCurrency } from '../src/utils/formatters';
 import { History, ArrowRight, User } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HistoryScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['system-inventory-history'],
@@ -52,7 +54,10 @@ export default function HistoryScreen() {
         <FlatList
           data={historyItems}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: Spacing.xxxl + Math.max(insets.bottom, 16) },
+          ]}
           refreshControl={
             <RefreshControl
               refreshing={isFetching && !isLoading}

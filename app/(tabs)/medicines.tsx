@@ -20,11 +20,13 @@ import { Input } from '../../src/components/common/Input';
 import { EmptyState } from '../../src/components/common/EmptyState';
 import { useDebounce } from '../../src/hooks/useDebounce';
 import { Search, Plus, Filter, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type FilterType = 'ALL' | 'LOW_STOCK' | 'EXPIRING' | 'EXPIRED';
 
 export default function MedicinesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ initialSearch?: string }>();
   const [searchTerm, setSearchTerm] = useState(params.initialSearch || '');
   const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
@@ -60,7 +62,12 @@ export default function MedicinesScreen() {
   return (
     <View style={styles.container}>
       {/* Top Header */}
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: Math.max(insets.top, 12) + Spacing.xs },
+        ]}
+      >
         <Text style={styles.headerTitle}>Medicine Catalog</Text>
         <TouchableOpacity
           style={styles.addButton}
@@ -178,7 +185,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl + 10,
     paddingBottom: Spacing.sm,
     backgroundColor: Colors.surface,
   },

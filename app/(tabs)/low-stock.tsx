@@ -29,9 +29,11 @@ import {
   Truck,
   CheckCircle,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LowStockScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const { data: lowStockItems, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['low-stock-list'],
@@ -66,7 +68,12 @@ export default function LowStockScreen() {
   return (
     <View style={styles.container}>
       {/* Top Header */}
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: Math.max(insets.top, 12) + Spacing.xs },
+        ]}
+      >
         <View>
           <Text style={styles.headerTitle}>Low Stock Monitoring</Text>
           <Text style={styles.headerSubtitle}>
@@ -217,7 +224,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl + 10,
     paddingBottom: Spacing.md,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,

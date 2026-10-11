@@ -20,8 +20,10 @@ import { Card } from '../../../src/components/common/Card';
 import { LoadingSpinner } from '../../../src/components/common/LoadingSpinner';
 import { formatQuantity } from '../../../src/utils/formatters';
 import { PackagePlus, RefreshCw, AlertTriangle } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AdjustStockModal() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -124,7 +126,13 @@ export default function AdjustStockModal() {
         showBack
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Spacing.xxxl + Math.max(insets.bottom, 16) },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Mode Selector */}
         <View style={styles.modeTabs}>
           <TouchableOpacity

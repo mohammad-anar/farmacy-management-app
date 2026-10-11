@@ -17,8 +17,10 @@ import {
   Database,
   RefreshCw,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuthStore();
   const { isOnline, isSyncing, pendingCount, lastSyncTime, syncError } = useSyncStore();
 
@@ -51,7 +53,13 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingTop: Math.max(insets.top, 12) + Spacing.sm },
+      ]}
+    >
       {/* Top Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Owner Settings</Text>
@@ -176,7 +184,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: Spacing.lg,
-    paddingTop: Spacing.xl + 10,
     paddingBottom: Spacing.xxxl,
   },
   header: {

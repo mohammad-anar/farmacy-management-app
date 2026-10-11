@@ -37,8 +37,10 @@ import {
   FileText,
   AlertTriangle,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function MedicineDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -122,7 +124,10 @@ export default function MedicineDetailScreen() {
       />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Spacing.xxxl + Math.max(insets.bottom, 16) },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={isFetching && !isLoading}

@@ -13,8 +13,10 @@ import { Input } from '../../src/components/common/Input';
 import { Button } from '../../src/components/common/Button';
 import { useAuthStore } from '../../src/store/authStore';
 import { Mail, Lock, Pill } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('admin@pharmacy.com');
   const [password, setPassword] = useState('PharmacyAdmin123!');
   const [loading, setLoading] = useState(false);
@@ -49,7 +51,13 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: Math.max(insets.top, Spacing.xl),
+            paddingBottom: Math.max(insets.bottom, Spacing.xl),
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>

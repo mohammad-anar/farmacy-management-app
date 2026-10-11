@@ -21,9 +21,11 @@ import { Input } from '../../src/components/common/Input';
 import { Button } from '../../src/components/common/Button';
 import { Card } from '../../src/components/common/Card';
 import { ChevronDown, ChevronUp, Sparkles, Check } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function NewMedicineScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
   const [showClinicalSection, setShowClinicalSection] = useState(false);
@@ -110,7 +112,13 @@ export default function NewMedicineScreen() {
     >
       <Header title="Add New Medicine" subtitle="Enter medicine inventory record" showBack />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Spacing.xxxl + Math.max(insets.bottom, 16) },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* MANDATORY SECTION (Only 3 required fields) */}
         <Card style={styles.requiredCard}>
           <View style={styles.requiredHeader}>
